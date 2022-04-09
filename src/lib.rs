@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::io::{Error, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
@@ -61,5 +62,66 @@ impl I3Stream {
         self.socket.read_exact(&mut response_payload)?;
 
         Ok(response_payload)
+    }
+}
+
+pub enum FocusTarget {
+    Previous,
+    Next,
+}
+
+pub struct I3Service {
+    i3stream: I3Stream,
+}
+
+#[derive(Serialize, Deserialize)]
+struct I3TreeNode {
+    id: u64,
+    focused: bool,
+    nodes: Vec<I3TreeNode>,
+}
+
+impl I3Service {
+    pub fn connect<P: AsRef<Path>>(path: P) -> Result<I3Service, Error> {
+        I3Stream::connect(path).map(|i3stream| I3Service { i3stream })
+    }
+
+    pub fn focus(&mut self, target: FocusTarget) -> Result<(), Error> {
+        let payload = self.i3stream.execute(I3Message::GetTree)?;
+        let node: I3TreeNode = serde_json::from_slice(&payload)?;
+
+        match I3Service::find_node_to_focus(&node, &target) {
+            Some(node) => {
+                let payload = format!("[con_id={}]focus", node.id).into_bytes();
+                match self.i3stream.execute(I3Message::RunCommand(payload)) {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err(err),
+                }
+            }
+            None => Ok(()),
+        }
+    }
+
+    fn find_node_to_focus<'a>(
+        node: &'a I3TreeNode,
+        target: &FocusTarget,
+    ) -> Option<&'a I3TreeNode> {
+        for (i, child) in node.nodes.iter().enumerate() {
+            if child.focused {
+                let index = match target {
+                    FocusTarget::Previous => (i + node.nodes.len() - 1) % node.nodes.len(),
+                    FocusTarget::Next => (i + 1) % node.nodes.len(),
+                };
+
+                return Some(&node.nodes[index]);
+            } else {
+                match I3Service::find_node_to_focus(child, target) {
+                    Some(node) => return Some(node),
+                    None => continue,
+                }
+            }
+        }
+
+        None
     }
 }

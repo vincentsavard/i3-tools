@@ -1,6 +1,6 @@
 extern crate core;
 
-use i3_tools::{I3Message, I3Stream};
+use i3_tools::{FocusTarget, I3Service};
 use std::io::Error;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -21,14 +21,12 @@ struct Opt {
 
 fn main() -> Result<(), Error> {
     let opt: Opt = Opt::from_args();
-    let mut i3stream = I3Stream::connect(opt.socket)?;
+    let mut i3service = I3Service::connect(opt.socket)?;
+    let target = match opt.action.as_str() {
+        "previous" => FocusTarget::Previous,
+        "next" => FocusTarget::Next,
+        _ => unreachable!(),
+    };
 
-    println!("Performing <{}>", opt.action);
-
-    match i3stream.execute(I3Message::GetTree) {
-        Ok(payload) => println!("{}", String::from_utf8_lossy(&payload)),
-        Err(error) => return Err(error),
-    }
-
-    Ok(())
+    i3service.focus(target)
 }
