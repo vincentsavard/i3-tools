@@ -1,3 +1,7 @@
+extern crate core;
+
+use i3_tools::{I3Message, I3Stream};
+use std::io::Error;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -15,11 +19,16 @@ struct Opt {
     action: String,
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let opt: Opt = Opt::from_args();
-    println!(
-        "Performing <{}> on <{}>",
-        opt.action,
-        opt.socket.to_str().unwrap()
-    );
+    let mut i3stream = I3Stream::connect(opt.socket)?;
+
+    println!("Performing <{}>", opt.action);
+
+    match i3stream.execute(I3Message::GetTree) {
+        Ok(payload) => println!("{}", String::from_utf8_lossy(&payload)),
+        Err(error) => return Err(error),
+    }
+
+    Ok(())
 }
