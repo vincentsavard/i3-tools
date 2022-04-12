@@ -14,10 +14,9 @@ pub struct I3Stream {
 }
 
 impl I3Stream {
-    pub fn connect<P: AsRef<Path>>(path: P) -> Result<I3Stream, Error> {
+    pub fn connect<P: AsRef<Path>>(path: P, timeout: Option<Duration>) -> Result<I3Stream, Error> {
         match UnixStream::connect(path) {
             Ok(socket) => {
-                let timeout = Some(Duration::from_millis(250));
                 socket.set_read_timeout(timeout).unwrap();
                 socket.set_write_timeout(timeout).unwrap();
 
@@ -82,8 +81,8 @@ struct I3TreeNode {
 }
 
 impl I3Service {
-    pub fn connect<P: AsRef<Path>>(path: P) -> Result<I3Service, Error> {
-        I3Stream::connect(path).map(|i3stream| I3Service { i3stream })
+    pub fn connect<P: AsRef<Path>>(path: P, timeout: Option<Duration>) -> Result<I3Service, Error> {
+        I3Stream::connect(path, timeout).map(|i3stream| I3Service { i3stream })
     }
 
     pub fn focus(&mut self, target: FocusTarget) -> Result<(), Error> {
