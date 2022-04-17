@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::io::{Error, Read, Write};
+use std::io::{Error, ErrorKind, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::time::Duration;
@@ -33,11 +33,17 @@ impl I3Stream {
 
     fn write(&mut self, message: I3Message) -> Result<(), Error> {
         let (payload_length, message_type, payload) = match message {
-            I3Message::RunCommand(payload) => (
-                (payload.len() as u32).to_ne_bytes(),
-                0_u32.to_ne_bytes(),
-                payload,
-            ),
+            I3Message::RunCommand(payload) => {
+                if payload.len() > u32::MAX as usize {
+                    return Err(Error::new(ErrorKind::Other, "payload too large"));
+                }
+
+                (
+                    (payload.len() as u32).to_ne_bytes(),
+                    0_u32.to_ne_bytes(),
+                    payload,
+                )
+            }
             I3Message::GetTree => (0_u32.to_ne_bytes(), 4_u32.to_ne_bytes(), vec![]),
         };
 
