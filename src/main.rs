@@ -15,7 +15,7 @@ struct Opt {
     #[clap(short, long, parse(from_os_str), env = "I3SOCK")]
     socket: PathBuf,
 
-    /// Sets the connect and read timeout duration of the socket, in milliseconds
+    /// Sets the connect and read timeout duration of the socket, in milliseconds. Zero disables the timeout
     #[clap(short, long, default_value = "250")]
     timeout: u64,
 
